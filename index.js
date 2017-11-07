@@ -16,6 +16,8 @@ module.exports = function(source) {
 	var tmpl = jade.compileClientWithDependenciesTracked(source, {
 		filename: this.resourcePath,
 		self: query.self,
+		basedir: query.basedir,
+		doctype: query.doctype,
 		pretty: query.pretty,
 		locals: query,
 		compileDebug: true,
