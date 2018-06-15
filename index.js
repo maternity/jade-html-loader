@@ -27,7 +27,7 @@ module.exports = function(source) {
 		this.addDependency(dep);
 	}.bind(this));
 
-	var opts = this.options;
+	var opts = loaderUtils.getOptions(this.query);
 
 	var loaders = opts.module ? opts.module.loaders : opts.resolve.loaders;
 
