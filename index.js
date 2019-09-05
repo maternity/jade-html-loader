@@ -5,21 +5,23 @@
 
 var loaderUtils = require("loader-utils");
 var Path = require('path');
+var Module = require("module");
 
 module.exports = function(source) {
+	var self = this;
 	this.cacheable && this.cacheable(true);
 	var jade = require("jade");
-	var query = loaderUtils.parseQuery(this.query);
+	var opts = loaderUtils.getOptions(this);
 
 	var dirname = Path.dirname(this.resourcePath);
 
 	var tmpl = jade.compileClientWithDependenciesTracked(source, {
 		filename: this.resourcePath,
-		self: query.self,
-		basedir: query.basedir,
-		doctype: query.doctype,
-		pretty: query.pretty,
-		locals: query,
+		self: opts.self,
+		pretty: opts.pretty,
+		basedir: opts.basedir,
+		doctype: opts.doctype,
+		locals: opts,
 		compileDebug: true,
 		externalRuntime: false
 	});
@@ -27,29 +29,11 @@ module.exports = function(source) {
 	tmpl.dependencies.forEach(function(dep) {
 		this.addDependency(dep);
 	}.bind(this));
-
-	var opts = this.options;
-
-	var loaders = opts.module ? opts.module.loaders : opts.resolve.loaders;
-
-	var mopts = Object.keys(opts).reduce(function(acc, key) {
-		acc[key] = opts[key];
-		return acc;
-	}, {});
-
-	mopts.recursive = true;
-	mopts.resolve = {
-		loaders: loaders,
-		extensions: opts.resolve.extensions,
-		modulesDirectories: (opts.resolve.modulesDirectories || []).concat(opts.resolve.fallback || [])
-	};
-
-	var er = 'var jade = require(' + resolve('jade/runtime') + ');\nrequire = require(' + resolve('enhanced-require') + ')(module, require(' + resolve('./json2regexp') + ')(' +
-				JSON.stringify(mopts, toString) + '));\n';
+	var er = 'var jade = require(' + resolve('jade/runtime') + ');\n';
 
 	var moduleBody = er + tmpl.body + '\n\nmodule.exports = template;\ntemplate.__require = require';
 
-	var mod = this.exec(moduleBody, this.resource);
+	var mod = exec(moduleBody, this.resourcePath);
 
 	var _require = mod.__require;
 
@@ -57,7 +41,15 @@ module.exports = function(source) {
 		this.addDependency && this.addDependency(file);
 	}
 
-	return mod(query.locals || query);
+	return mod(opts.locals || opts);
+
+	function exec(code, filename) {
+	  const module = new Module(filename, self);
+	  module.paths = Module._nodeModulePaths(self.context);
+	  module.filename = filename;
+	  module._compile(code, filename);
+	  return module.exports;
+	}
 }
 
 function resolve(path) {
